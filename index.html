@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Touch Typing Monitor</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <nav class = "dashboard">
+    <button onclick="showPage('dashboardPage')">📊 Dashboard</button>
+    <button onclick="showPage('studentActionsPage')">👩‍🎓 Student Actions</button>
+    <button onclick="showPage('leaderboardPage')">🏆 Leaderboards</button>
+</nav>
+<h1>Typing Progress</h1>
+</header>
+
+
+
+<div id="dashboardPage"  class="page">
+    <div class="dashboard">
+        <div class="card stat">
+            <h3>Total Students</h3>
+            <p id="totalStudents">0</p>
+        </div>
+
+        <div class="card stat">
+            <h3>Ninja Mode</h3>
+            <p id="ninjaReady">0</p>
+        </div>
+
+        <div class="card stat">
+            <h3>Average WPM</h3>
+            <p id="avgWpm">0</p>
+        </div>
+
+        <div class="card stat">
+            <h3>Average Progress</h3>
+            <p id="avgProgress">0%</p>
+        </div>
+    </div>
+
+
+    <div class="card">
+
+        <h2>Filter Students</h2>
+
+        <input type="text" id="searchInput"
+        placeholder="Search student..."
+        onkeyup="renderStudents()">
+
+        <select id="gradeFilter" onchange="renderStudents()">
+        <option>All Grades</option>
+        <option>Grade 4</option>
+        <option>Grade 5</option>
+        <option>Grade 6</option>
+        <option>Grade 7</option>
+        <option>Grade 8</option>
+        </select>
+
+    </div>
+
+
+    <div class="card">
+        <h2>Student Progress</h2>
+
+        <table>
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Grade</th>
+                <th>Progress</th>
+                <th>Remaining</th>
+                <th>Activity</th>
+            </tr>
+            </thead>
+            <tbody id="studentTable"></tbody>
+        </table>
+    </div>
+</div>
+<div id="leaderboardPage" class="page" style="display:none;">
+
+    <div class="card">
+        <h2>🏆 Ninja Leaderboard</h2>
+        <ol id="overallBoard"></ol>
+    </div>
+
+    <div class="card">
+        <h2>📈 Most Improved</h2>
+        <ol id="improvedBoard"></ol>
+    </div>
+
+
+    <div class="card">
+        <h2>🎯 Grade Leaderboard</h2>
+
+        <select id="leaderGrade" onchange="renderGradeLeaderboard()">
+        <option>Grade 4</option>
+        <option>Grade 5</option>
+        <option>Grade 6</option>
+        <option>Grade 7</option>
+        <option>Grade 8</option>
+        </select>
+
+        <ol id="gradeBoard"></ol>
+
+    </div>
+
+</div>
+
+<!-- Student Actions -->
+<div id="studentActionsPage" class="page" style="display:none;">
+  <h2>Student Actions</h2>
+
+  <!-- Add Student -->
+  <div class="card">
+    <h3>Add New Student</h3>
+    <input type="text" id="studentName" placeholder="Student Name">
+    <select id="studentGrade">
+      <option>Grade 4</option>
+      <option>Grade 5</option>
+      <option>Grade 6</option>
+      <option>Grade 7</option>
+      <option>Grade 8</option>
+    </select>
+    <select id="activity"></select>
+    <button onclick="saveStudent()">Save Student</button>
+  </div>
+
+
+
+</div>
+
+
+
+<script src="script.js"></script>
+</body>
+</html>
