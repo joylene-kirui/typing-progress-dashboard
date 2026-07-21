@@ -12,6 +12,11 @@
     <button onclick="showPage('dashboardPage')">📊 Dashboard</button>
     <button onclick="showPage('studentActionsPage')">👩‍🎓 Student Actions</button>
     <button onclick="showPage('leaderboardPage')">🏆 Leaderboards</button>
+    
+    <button onclick="exportStudents()">⬇️ Download All Students</button>
+    <input type="file" id="importFile" onchange="importStudents(this.files[0])">
+
+    
 </nav>
 <h1>Typing Progress</h1>
 </header>
@@ -64,6 +69,7 @@
 
     <div class="card">
         <h2>Student Progress</h2>
+        <div id="statusMessage"></div>
 
         <table>
             <thead>
@@ -96,6 +102,7 @@
         <h2>🎯 Grade Leaderboard</h2>
 
         <select id="leaderGrade" onchange="renderGradeLeaderboard()">
+        <option>All Grades</option>
         <option>Grade 4</option>
         <option>Grade 5</option>
         <option>Grade 6</option>
@@ -112,10 +119,16 @@
 <!-- Student Actions -->
 <div id="studentActionsPage" class="page" style="display:none;">
   <h2>Student Actions</h2>
-
-  <!-- Add Student -->
   <div class="card">
-    <h3>Add New Student</h3>
+    <div id="addStudentStatus"></div>
+
+    <h3>Add / Edit Student</h3>
+
+    <!-- Search existing student -->
+    <input type="text" id="searchStudent" placeholder="Search Student by Name">
+    <button onclick="loadStudent()">Search</button>
+
+    <!-- Add/Edit form -->
     <input type="text" id="studentName" placeholder="Student Name">
     <select id="studentGrade">
       <option>Grade 4</option>
@@ -125,15 +138,13 @@
       <option>Grade 8</option>
     </select>
     <select id="activity"></select>
-    <button onclick="saveStudent()">Save Student</button>
+    <button id="saveBtn" onclick="saveStudent()">Add Student</button>
+    <button id="deleteBtn" onclick="deleteStudent()" style="display:none;">Delete Student</button>
   </div>
-
-
-
 </div>
 
 
-
+</div>
 <script src="script.js"></script>
 </body>
 </html>

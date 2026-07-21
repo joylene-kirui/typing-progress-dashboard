@@ -29,6 +29,7 @@ const activityLevels = {
 24:{start:"a",end:"p"}
 };
 
+
 // =============================
 // STORAGE
 // =============================
@@ -126,50 +127,75 @@ return new Date().toLocaleString();
 // =============================
 // SAVE STUDENT (FIXED)
 // =============================
+let editingStudentId = null;
+
+function loadStudent(){
+  const name = safe("searchStudent").value.trim();
+  const student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
+
+  if(student){
+    editingStudentId = student.id;
+    safe("studentName").value = student.name;
+    safe("studentGrade").value = student.grade;
+    activitySelect.value = student.activity;
+    updateSubLevel(); // refresh sublevel dropdown
+    subLevelSelect.value = student.subLevel;
+
+    safe("saveBtn").innerText = "Update Student";
+    safe("deleteBtn").style.display = "inline-block";
+  } else {
+    showStatus("❌ Student not found.", "addStudentStatus");
+  }
+}
+
 function saveStudent(){
+  const name = safe("studentName")?.value?.trim();
+  const grade = safe("studentGrade")?.value;
+  const activity = Number(activitySelect?.value);
+  const subLevel = subLevelSelect?.value || activityLevels[activity].start;
 
-try{
+  if(!name){
+    showStatus("Please fill all fields before saving.", "addStudentStatus");
+    return;
+  }
 
-const name = safe("studentName")?.value?.trim();
-const grade = safe("studentGrade")?.value;
-const activity = Number(activitySelect?.value);
-const subLevel = subLevelSelect?.value || activityLevels[activity].start;
+  let student = students.find(s => s.name.toLowerCase() === name.toLowerCase());
 
-if(!name){
-alert("Enter student name");
-return;
+  if(!student){
+    students.push({ id: Date.now(), name, grade, activity, subLevel, ninjaAttempts:[] });
+    showStatus(`✅ Added new student: ${name} (${grade})`, "addStudentStatus");
+  } else {
+    student.grade = grade;
+    student.activity = activity;
+    student.subLevel = subLevel;
+    showStatus(`✏️ Updated student: ${name} (${grade})`, "addStudentStatus");
+  }
+
+  save();
+  resetForm();
 }
 
-let student = students.find(
-s => s.name.toLowerCase() === name.toLowerCase()
-);
-
-if(!student){
-
-students.push({
-id: Date.now(),
-name,
-grade,
-activity,
-subLevel,
-ninjaAttempts:[]
-});
-
-}else{
-
-student.grade = grade;
-student.activity = activity;
-student.subLevel = subLevel;
-
+function deleteStudent(){
+  if(editingStudentId){
+    students = students.filter(s => s.id !== editingStudentId);
+    showStatus("🗑️ Student deleted successfully!", "addStudentStatus");
+    save();
+    resetForm();
+  }
 }
 
-save();
+function resetForm(){
+  editingStudentId = null;
+  safe("studentName").value = "";
+  safe("studentGrade").value = "Grade 4";
+  activitySelect.value = 1;
+  updateSubLevel();
+  subLevelSelect.value = activityLevels[1].start;
 
-}catch(err){
-console.error("saveStudent error:", err);
+  safe("saveBtn").innerText = "Add Student";
+  safe("deleteBtn").style.display = "none";
 }
 
-}
 
 // =============================
 // SAVE NINJA
@@ -252,25 +278,30 @@ function renderStudents(){
 
       if(isNinja){
         // Ninja Mode row
+        const latestAttempt = s.ninjaAttempts.at(-1);
+        const wpmDisplay = latestAttempt ? latestAttempt.wpm + " WPM" : "No WPM yet";
+
         tbody.innerHTML += `
           <tr class="border-b border-gray-500">
             <td class="px-3 py-2">${s.name}</td>
             <td class="px-3 py-2">${s.grade}</td>
-            <td class="px-3 py-2">${progress(s)}%</td>
+            <td class="px-3 py-2">${wpmDisplay}</td>
             <td class="px-3 py-2">${remaining(s)}%</td>
             <td class="px-3 py-2">
               🥷 Ninja Mode<br>
               <input type="number" id="wpm-${s.id}" placeholder="WPM"
                 class="px-2 py-1 border border-gray-500 rounded bg-gray-100 dark_bg-gray-900"
-                value="${s.ninjaAttempts.at(-1)?.wpm || ''}">
+                value="${latestAttempt?.wpm || ''}">
               <input type="number" id="acc-${s.id}" placeholder="Accuracy %"
                 class="px-2 py-1 border border-gray-500 rounded bg-gray-100 dark_bg-gray-900"
-                value="${s.ninjaAttempts.at(-1)?.accuracy || ''}">
+                value="${latestAttempt?.accuracy || ''}">
               <button onclick="updateNinja('${s.id}')"
                 class="mt-2 px-3 py-1 bg-blue-200 dark_bg-blue-700 hover_bg-blue-300 dark_hover_bg-blue-600 rounded shadow">
                 Update Ninja
               </button>
             </td>
+
+
           </tr>
         `;
       } else {
@@ -294,14 +325,17 @@ function renderStudents(){
           <tr class="border-b border-gray-500">
             <td class="px-3 py-2">${s.name}</td>
             <td class="px-3 py-2">${s.grade}</td>
-            <td class="px-3 py-2">${progress(s)}%</td>
+            <td class="px-3 py-2">Activity ${s.activity} (${progress(s)}%)</td>
             <td class="px-3 py-2">${remaining(s)}%</td>
-            <td class="px-3 py-2">${activityDropdown}<br>${subDropdown}</td>
+            <td class="px-3 py-2">
+              ${activityDropdown}<br>${subDropdown}
+            </td>
           </tr>
         `;
       }
     });
 }
+
 
 
 
@@ -333,43 +367,40 @@ sel.appendChild(opt);
 // SCORE
 // =============================
 function score(s){
-
-if(!s.ninjaAttempts.length) return 0;
-
-const last = s.ninjaAttempts.at(-1);
-
-return (last.wpm * last.accuracy) / 100;
-
+  if(!s.ninjaAttempts.length) return 0;
+  const last = s.ninjaAttempts.at(-1);
+  return last.wpm + (last.accuracy / 100); // adds a small boost for accuracy
 }
+
+
 
 // =============================
 // OVERALL LEADERBOARD
 // =============================
 function renderOverallLeaderboard(){
 
-const board = safe("overallBoard");
-if(!board) return;
+  const board = safe("overallBoard");
+  if(!board) return;
 
-board.innerHTML = "";
+  board.innerHTML = "";
 
-students
-.filter(s => s.ninjaAttempts.length)
-.sort((a,b) => score(b) - score(a))
-.forEach(s => {
+  // Sort by score (WPM + accuracy boost)
+  let filtered = students
+    .filter(s => s.ninjaAttempts.length)
+    .sort((a,b) => score(b) - score(a));
 
-const last = s.ninjaAttempts.at(-1);
+  // Limit to top 10
+  filtered = filtered.slice(0,10);
 
-board.innerHTML += `
-<li>${s.name} (${s.grade}) - ${last.wpm} WPM - ${last.accuracy}%</li>
-`;
-
-});
-
+  // Render list
+  filtered.forEach(s => {
+    const last = s.ninjaAttempts.at(-1);
+    board.innerHTML += `<li>${s.name} (${s.grade}) - ${last.wpm} WPM, ${last.accuracy}%</li>`;
+  });
 }
-
 // =============================
 // GRADE LEADERBOARD
-// =============================
+// ============================= 
 function renderGradeLeaderboard(){
   const grade = safe("leaderGrade")?.value;
   const board = safe("gradeBoard");
@@ -377,77 +408,52 @@ function renderGradeLeaderboard(){
 
   board.innerHTML = "";
 
-  students
-    .filter(s => s.grade === grade && (s.ninjaAttempts.length || s.activity > 0))
-    .sort((a,b) => combinedScore(b) - combinedScore(a))
-    .forEach(s => {
-      const prog = progress(s);
-      const ninja = s.ninjaAttempts.length
-        ? (s.ninjaAttempts.at(-1).wpm * s.ninjaAttempts.at(-1).accuracy / 100).toFixed(1)
-        : "No attempt";
+  let filtered;
 
-      board.innerHTML += `
-        <li>${s.name} - Progress: ${prog}% - Ninja: ${ninja}</li>
-      `;
+  if(grade === "All Grades"){
+    // All students for unified leaderboard
+    filtered = students.filter(s => s.ninjaAttempts.length || s.activity > 0);
+
+    // Custom sorting: Ninja by WPM, Activity by progress
+    filtered.sort((a,b) => {
+      const aScore = (a.activity === 24 && a.subLevel === activityLevels[24].end)
+        ? (a.ninjaAttempts.length ? a.ninjaAttempts.at(-1).wpm : 0)
+        : Number(progress(a));
+      const bScore = (b.activity === 24 && b.subLevel === activityLevels[24].end)
+        ? (b.ninjaAttempts.length ? b.ninjaAttempts.at(-1).wpm : 0)
+        : Number(progress(b));
+      return bScore - aScore;
     });
-}
 
+    // Limit to top 10
+    filtered = filtered.slice(0,10);
+  } else {
+    // Only students from the selected grade
+    filtered = students.filter(s => s.grade === grade && (s.ninjaAttempts.length || s.activity > 0))
+      .sort((a,b) => combinedScore(b) - combinedScore(a));
+  }
 
-// =============================
-// IMPROVEMENT
-// =============================
-function renderImprovedLeaderboard(){
-  const board = safe("improvedBoard");
-  if(!board) return;
+  filtered.forEach(s => {
+    let displayInfo;
 
-  board.innerHTML = "";
-
-  let list = [];
-
-  students.forEach(s => {
-    let ninjaImprovement = 0;
-    let activityImprovement = 0;
-
-    // Ninja improvement (first vs last WPM)
-    if(s.ninjaAttempts.length >= 2){
-      const firstWpm = s.ninjaAttempts[0].wpm;
-      const lastWpm = s.ninjaAttempts.at(-1).wpm;
-      ninjaImprovement = lastWpm - firstWpm;
+    // 🥷 Ninja Mode → show latest WPM
+    if(s.activity === 24 && s.subLevel === activityLevels[24].end){
+      const latestAttempt = s.ninjaAttempts.at(-1);
+      displayInfo = latestAttempt
+        ? `Ninja WPM: ${latestAttempt.wpm}`
+        : "Ninja Mode (no WPM yet)";
+    } 
+    // 📘 Activity students → show exact Activity + Sublevel
+    else {
+      displayInfo = `Activity ${s.activity}-${s.subLevel} (${progress(s)}%)`;
     }
 
-    // Activity improvement (progress % difference)
-    if(s.ninjaAttempts.length === 0){ // only consider activity if not in ninja mode
-      const progNow = Number(progress(s));
-      const progStart = s.activity > 1 ? 0 : progNow;
-      activityImprovement = progNow - progStart;
+    // Show grade only when "All Grades" is selected
+    if(grade === "All Grades"){
+      board.innerHTML += `<li>${s.name} (${s.grade}) - ${displayInfo}</li>`;
+    } else {
+      board.innerHTML += `<li>${s.name} - ${displayInfo}</li>`;
     }
-
-    if(ninjaImprovement !== 0 || activityImprovement !== 0){
-      list.push({
-        name: s.name,
-        ninjaImprovement,
-        activityImprovement
-      });
-    }
-  });
-
-  // sort by whichever improvement applies
-  list.sort((a,b) => {
-    const aImp = a.ninjaImprovement || a.activityImprovement;
-    const bImp = b.ninjaImprovement || b.activityImprovement;
-    return bImp - aImp;
-  })
-  .slice(0,3) // only top 3
-  .forEach(i => {
-    let display = i.name + " ";
-
-    if(i.ninjaImprovement !== 0){
-      display += `+${i.ninjaImprovement} WPM`;
-    } else if(i.activityImprovement !== 0){
-      display += `+${i.activityImprovement.toFixed(1)}%`;
-    }
-
-    board.innerHTML += `<li>${display}</li>`;
   });
 }
 
@@ -498,7 +504,8 @@ renderAll();
 }catch(e){
 console.error("Save failed:", e);
 }
-
+renderStudents();
+renderDashboard();
 }
 
 // =============================
@@ -527,27 +534,30 @@ function toggleForm(id){
     form.style.display = "none";
   }
 }
-function updateStudentActivity(){
-  const name = safe("updateName")?.value?.trim();
-  const activity = Number(safe("updateActivity")?.value);
-
-  if(!name || !activity){
-    alert("Enter student name and activity");
-    return;
-  }
-
-  let student = students.find(
-    s => s.name.toLowerCase() === name.toLowerCase()
-  );
-
+function updateStudentActivity(id){
+  // Find student by id instead of name
+  const student = students.find(s => s.id == id);
   if(!student){
-    alert("Student not found in selected grade");
+    showStatus("❌ Student not found.");
     return;
   }
 
-  student.activity = activity;
-  student.subLevel = activityLevels[activity].start; // default sublevel
+  // Get values from the dropdowns rendered in the row
+  const newActivity = Number(document.getElementById("activity-" + id).value);
+  const newSub = document.getElementById("sub-" + id).value;
+
+  if(!newActivity || !newSub){
+    showStatus("Enter both activity and sublevel.");
+    return;
+  }
+
+  // Update values
+  student.activity = newActivity;
+  student.subLevel = newSub;
   save();
+
+  // ✅ Success message
+  showStatus(`✔️ Successfully updated ${student.name}'s activity to Activity ${newActivity}, Sublevel ${newSub}`);
 }
 
 
@@ -617,7 +627,7 @@ function updateActivityDropdown(id, newActivity){
   }
   student.subLevel = lvl.start; // default first letter
   save();
-}
+  showStatus(`✔️ Successfully updated ${student.name}'s activity to Activity ${newActivity}`);}
 
 function updateSubLevelDropdown(id, newSub){
   const student = students.find(s => s.id == id);
@@ -625,6 +635,7 @@ function updateSubLevelDropdown(id, newSub){
 
   student.subLevel = newSub;
   save();
+  showStatus(`${student.name}'s sublevel updated to ${newSub}`);
 }
 function updateNinja(id){
   const student = students.find(s => s.id == id);
@@ -634,10 +645,117 @@ function updateNinja(id){
   const acc = Number(document.getElementById("acc-" + id).value);
 
   if(!wpm || !acc){
-    alert("Enter both WPM and Accuracy");
+    showStatus("Please enter both WPM and Accuracy.");
     return;
   }
 
   student.ninjaAttempts.push({ wpm, accuracy: acc });
   save();
+  showStatus(`${student.name}'s Ninja Mode updated: WPM ${wpm}, Accuracy ${acc}%`);
+}
+function showStatus(msg, targetId="statusMessage"){
+  const status = document.getElementById(targetId);
+  if(status){
+    status.innerText = msg;
+    status.className = "card stat";
+    status.style.color = "green";
+    setTimeout(() => { status.innerText = ""; }, 3000);
+  }
+}
+
+
+function renderGrades(){
+  const container = document.getElementById("gradesTab");
+  container.innerHTML = "";
+
+  const grades = [...new Set(students.map(s => s.grade))]; // unique grades
+
+  grades.forEach(grade => {
+    let html = `
+      <div class="card">
+        <h3>${grade}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Activity</th>
+              <th>Sublevel</th>
+              <th>Update</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    students.filter(s => s.grade === grade).forEach(s => {
+      // Activity dropdown
+      let activityDropdown = `<select onchange="updateActivityDropdown('${s.id}', this.value)">`;
+      for(let i=1;i<=24;i++){
+        activityDropdown += `<option value="${i}" ${i===s.activity?"selected":""}>Activity ${i}</option>`;
+      }
+      activityDropdown += `</select>`;
+
+      // Sublevel dropdown
+      const lvl = activityLevels[s.activity];
+      let subDropdown = `<select id="sub-${s.id}" onchange="updateSubLevelDropdown('${s.id}', this.value)">`;
+      for(let i=lvl.start.charCodeAt(0); i<=lvl.end.charCodeAt(0); i++){
+        let letter = String.fromCharCode(i);
+        subDropdown += `<option value="${letter}" ${letter===s.subLevel?"selected":""}>${letter}</option>`;
+      }
+      subDropdown += `</select>`;
+
+      html += `
+        <tr>
+          <td>${s.name}</td>
+          <td>${activityDropdown}</td>
+          <td>${subDropdown}</td>
+          <td><button onclick="updateStudentActivity('${s.id}')">Update</button></td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML += html;
+  });
+}
+function exportStudents(){
+  const data = JSON.stringify(students, null, 2);
+  const blob = new Blob([data], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "students-backup.json";
+  a.click();
+
+  URL.revokeObjectURL(url);
+  showStatus("✅ Student list downloaded successfully!", "addStudentStatus");
+}
+
+function importStudents(file){
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const imported = JSON.parse(e.target.result);
+
+      // Merge with existing students
+      imported.forEach(newStu => {
+        let existing = students.find(s => s.name.toLowerCase() === newStu.name.toLowerCase());
+        if(existing){
+          existing.grade = newStu.grade;
+          existing.activity = newStu.activity;
+          existing.subLevel = newStu.subLevel;
+          existing.ninjaAttempts = newStu.ninjaAttempts || existing.ninjaAttempts;
+        } else {
+          students.push(newStu);
+        }
+      });
+
+      save();
+      showStatus("✅ Imported and merged student data successfully!", "addStudentStatus");
+    } catch(err){
+      console.error("Import failed:", err);
+      showStatus("❌ Failed to import students.", "addStudentStatus");
+    }
+  };
+  reader.readAsText(file);
 }
