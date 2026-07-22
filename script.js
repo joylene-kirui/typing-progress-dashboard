@@ -149,6 +149,7 @@ function loadStudent(){
 }
 
 function saveStudent(){
+  if(!checkAuth()) return;
   const name = safe("studentName")?.value?.trim();
   const grade = safe("studentGrade")?.value;
   const activity = Number(activitySelect?.value);
@@ -177,6 +178,7 @@ function saveStudent(){
 }
 
 function deleteStudent(){
+  if(!checkAuth()) return;
   if(editingStudentId){
     students = students.filter(s => s.id !== editingStudentId);
     showStatus("🗑️ Student deleted successfully!", "addStudentStatus");
@@ -600,6 +602,7 @@ function openUpdateActivity(id){
   save();
 }
 function updateActivityDropdown(id, newActivity){
+  if(!checkAuth()) return;
   const student = students.find(s => s.id == id);
   if(!student) return;
 
@@ -617,18 +620,18 @@ function updateActivityDropdown(id, newActivity){
     subSelect.appendChild(opt);
   }
   student.subLevel = lvl.start; // default first letter
-  alert(`${student.name}'s activity updated to Activity ${newActivity}, Sublevel ${student.subLevel}`);
   save();
 }
 function updateSubLevelDropdown(id, newSub){
+  if(!checkAuth()) return;
   const student = students.find(s => s.id == id);
   if(!student) return;
 
   student.subLevel = newSub;
-  alert(`${student.name}'s sublevel updated to ${newSub}`);
   save();
 }
 function updateNinja(id){
+  if(!checkAuth()) return;
   const student = students.find(s => s.id == id);
   if(!student) return;
 
@@ -643,7 +646,6 @@ function updateNinja(id){
   student.ninjaAttempts.push({ wpm, accuracy: acc });
 
   // 🔔 Show alert first
-  alert(`${student.name}'s Ninja Mode updated: WPM ${wpm}, Accuracy ${acc}%`);
 
   save();
 }
@@ -753,54 +755,54 @@ function importStudents(file){
   };
   reader.readAsText(file);
 }
-function renderImprovedLeaderboard(){
-  const board = safe("improvedBoard");
-  if(!board) return;
+let loggedIn = false;
 
-  board.innerHTML = "";
+function login(){
+  const user = document.getElementById("username").value;
+  const pass = document.getElementById("password").value;
 
-  let ninjaList = [];
-  let activityList = [];
+  if(user === "admin" && pass === "empowerkids"){
+    loggedIn = true;
 
-  students.forEach(s => {
-    // 🥷 Ninja improvement (all grades)
-    if(s.ninjaAttempts.length >= 2){
-      const firstWpm = s.ninjaAttempts[0].wpm;
-      const lastWpm = s.ninjaAttempts.at(-1).wpm;
-      const improvement = lastWpm - firstWpm;
-      if(improvement !== 0){
-        ninjaList.push({ name: s.name, grade: s.grade, improvement });
-      }
-    }
+    // Show welcome + logout
+    document.getElementById("welcomeMsg").innerText = "✅ Logged in as admin";
+    document.getElementById("logoutCard").style.display = "block";
 
-    // 📘 Activity improvement (only Grades 4, 5, 6)
-    if(["Grade 4","Grade 5","Grade 6"].includes(s.grade)){
-      const progStart = progress({ ...s, activity: 1, subLevel: activityLevels[1].start });
-      const progNow = progress(s);
-      const improvement = progNow - progStart;
-      if(improvement !== 0){
-        activityList.push({ name: s.name, grade: s.grade, improvement });
-      }
-    }
-  });
+    // Hide login form
+    document.getElementById("loginCard").style.display = "none";
 
-  // Sort each list
-  ninjaList.sort((a,b) => b.improvement - a.improvement);
-  activityList.sort((a,b) => b.improvement - a.improvement);
+    // Show protected actions
+    document.getElementById("protectedActions").style.display = "block";
 
-  // Limit to top 5 each
-  ninjaList = ninjaList.slice(0,5);
-  activityList = activityList.slice(0,5);
+    // Refresh page sections
+    renderAll();
+  } else {
+    loggedIn = false;
+    document.getElementById("loginStatus").innerText = "❌ Wrong username or password";
+  }
+}
 
-  // Render Ninja improvements
-  board.innerHTML += "<h3>🥷 Top 5 Ninja Improvements</h3>";
-  ninjaList.forEach(i => {
-    board.innerHTML += `<li>${i.name} (${i.grade}) +${i.improvement} WPM</li>`;
-  });
+function logout(){
+  loggedIn = false;
 
-  // Render Activity improvements
-  board.innerHTML += "<h3>📘 Top 5 Activity Improvements (Grades 4–6)</h3>";
-  activityList.forEach(i => {
-    board.innerHTML += `<li>${i.name} (${i.grade}) +${i.improvement.toFixed(1)}% Progress</li>`;
-  });
+  // Hide protected actions
+  document.getElementById("protectedActions").style.display = "none";
+
+  // Hide logout card
+  document.getElementById("logoutCard").style.display = "none";
+
+  // Show login form again
+  document.getElementById("loginCard").style.display = "block";
+
+  // Clear fields
+  document.getElementById("username").value = "";
+  document.getElementById("password").value = "";
+}
+
+function checkAuth(){
+  if(!loggedIn){
+    alert("You must log in as admin to perform this action.");
+    return false;
+  }
+  return true;
 }

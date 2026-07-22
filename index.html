@@ -92,10 +92,6 @@
         <ol id="overallBoard"></ol>
     </div>
 
-    <div class="card">
-        <h2>📈 Most Improved</h2>
-        <ol id="improvedBoard"></ol>
-    </div>
 
 
     <div class="card">
@@ -119,16 +115,28 @@
 <!-- Student Actions -->
 <div id="studentActionsPage" class="page" style="display:none;">
   <h2>Student Actions</h2>
-  <div class="card">
+
+  <!-- Admin Login -->
+  <div class="card" id="loginCard">
+    <h3>🔒 Admin Login</h3>
+    <input type="text" id="username" placeholder="Username">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <div id="loginStatus"></div>
+  </div>
+
+  <!-- Logout button (hidden until login) -->
+  <div class="card" id="logoutCard" style="display:none;">
+    <h3 id="welcomeMsg"></h3>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Protected section (hidden until login) -->
+  <div id="protectedActions" class="card" style="display:none;">
     <div id="addStudentStatus"></div>
-
     <h3>Add / Edit Student</h3>
-
-    <!-- Search existing student -->
     <input type="text" id="searchStudent" placeholder="Search Student by Name">
     <button onclick="loadStudent()">Search</button>
-
-    <!-- Add/Edit form -->
     <input type="text" id="studentName" placeholder="Student Name">
     <select id="studentGrade">
       <option>Grade 4</option>
@@ -142,6 +150,7 @@
     <button id="deleteBtn" onclick="deleteStudent()" style="display:none;">Delete Student</button>
   </div>
 </div>
+
 
 
 </div>
