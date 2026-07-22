@@ -168,10 +168,11 @@ function saveStudent(){
     student.grade = grade;
     student.activity = activity;
     student.subLevel = subLevel;
-    showStatus(`✏️ Updated student: ${name} (${grade})`, "addStudentStatus");
   }
 
   save();
+  showStatus(`✏️ Updated student: ${name} (${grade})`, "addStudentStatus");
+
   resetForm();
 }
 
@@ -411,44 +412,38 @@ function renderGradeLeaderboard(){
   let filtered;
 
   if(grade === "All Grades"){
-    // All students for unified leaderboard
-    filtered = students.filter(s => s.ninjaAttempts.length || s.activity > 0);
+    // Only Grades 4, 5, 6 AND Activity mode
+    filtered = students.filter(s => 
+      ["Grade 4","Grade 5","Grade 6"].includes(s.grade) &&
+      !(s.activity === 24 && s.subLevel === activityLevels[24].end) // exclude Ninja
+    );
 
-    // Custom sorting: Ninja by WPM, Activity by progress
-    filtered.sort((a,b) => {
-      const aScore = (a.activity === 24 && a.subLevel === activityLevels[24].end)
-        ? (a.ninjaAttempts.length ? a.ninjaAttempts.at(-1).wpm : 0)
-        : Number(progress(a));
-      const bScore = (b.activity === 24 && b.subLevel === activityLevels[24].end)
-        ? (b.ninjaAttempts.length ? b.ninjaAttempts.at(-1).wpm : 0)
-        : Number(progress(b));
-      return bScore - aScore;
-    });
+    // Sort by progress
+    filtered.sort((a,b) => Number(progress(b)) - Number(progress(a)));
 
     // Limit to top 10
     filtered = filtered.slice(0,10);
   } else {
-    // Only students from the selected grade
-    filtered = students.filter(s => s.grade === grade && (s.ninjaAttempts.length || s.activity > 0))
-      .sort((a,b) => combinedScore(b) - combinedScore(a));
+    // Show both Activity + Ninja students for the selected grade
+    filtered = students.filter(s => 
+      s.grade === grade && (s.ninjaAttempts.length || s.activity > 0)
+    ).sort((a,b) => combinedScore(b) - combinedScore(a));
   }
 
   filtered.forEach(s => {
     let displayInfo;
 
-    // 🥷 Ninja Mode → show latest WPM
     if(s.activity === 24 && s.subLevel === activityLevels[24].end){
+      // Ninja Mode → show latest WPM
       const latestAttempt = s.ninjaAttempts.at(-1);
       displayInfo = latestAttempt
         ? `Ninja WPM: ${latestAttempt.wpm}`
         : "Ninja Mode (no WPM yet)";
-    } 
-    // 📘 Activity students → show exact Activity + Sublevel
-    else {
+    } else {
+      // Activity Mode → show Activity + Sublevel
       displayInfo = `Activity ${s.activity}-${s.subLevel} (${progress(s)}%)`;
     }
 
-    // Show grade only when "All Grades" is selected
     if(grade === "All Grades"){
       board.innerHTML += `<li>${s.name} (${s.grade}) - ${displayInfo}</li>`;
     } else {
@@ -494,19 +489,14 @@ function renderDashboard(){
 // SAVE
 // =============================
 function save(){
-
-try{
-
-localStorage.setItem("typingStudents", JSON.stringify(students));
-
-renderAll();
-
-}catch(e){
-console.error("Save failed:", e);
+  try {
+    localStorage.setItem("typingStudents", JSON.stringify(students));
+    renderAll();   // this already calls renderStudents + renderDashboard
+  } catch(e){
+    console.error("Save failed:", e);
+  }
 }
-renderStudents();
-renderDashboard();
-}
+
 
 // =============================
 // MASTER RENDER
@@ -518,8 +508,9 @@ function renderAll(){
   renderGradeLeaderboard();
   renderImprovedLeaderboard();
   renderNinjaDropdown();
-  renderCombinedScore(); // new
+  // remove renderCombinedScore if not needed
 }
+
 
 function resetStudents(){
   localStorage.removeItem("typingStudents");
@@ -626,16 +617,16 @@ function updateActivityDropdown(id, newActivity){
     subSelect.appendChild(opt);
   }
   student.subLevel = lvl.start; // default first letter
+  alert(`${student.name}'s activity updated to Activity ${newActivity}, Sublevel ${student.subLevel}`);
   save();
-  showStatus(`✔️ Successfully updated ${student.name}'s activity to Activity ${newActivity}`);}
-
+}
 function updateSubLevelDropdown(id, newSub){
   const student = students.find(s => s.id == id);
   if(!student) return;
 
   student.subLevel = newSub;
+  alert(`${student.name}'s sublevel updated to ${newSub}`);
   save();
-  showStatus(`${student.name}'s sublevel updated to ${newSub}`);
 }
 function updateNinja(id){
   const student = students.find(s => s.id == id);
@@ -645,13 +636,16 @@ function updateNinja(id){
   const acc = Number(document.getElementById("acc-" + id).value);
 
   if(!wpm || !acc){
-    showStatus("Please enter both WPM and Accuracy.");
+    alert("Enter both WPM and Accuracy");
     return;
   }
 
   student.ninjaAttempts.push({ wpm, accuracy: acc });
+
+  // 🔔 Show alert first
+  alert(`${student.name}'s Ninja Mode updated: WPM ${wpm}, Accuracy ${acc}%`);
+
   save();
-  showStatus(`${student.name}'s Ninja Mode updated: WPM ${wpm}, Accuracy ${acc}%`);
 }
 function showStatus(msg, targetId="statusMessage"){
   const status = document.getElementById(targetId);
@@ -659,7 +653,7 @@ function showStatus(msg, targetId="statusMessage"){
     status.innerText = msg;
     status.className = "card stat";
     status.style.color = "green";
-    setTimeout(() => { status.innerText = ""; }, 3000);
+    setTimeout(() => { status.innerText = ""; }, 5000);
   }
 }
 
@@ -758,4 +752,55 @@ function importStudents(file){
     }
   };
   reader.readAsText(file);
+}
+function renderImprovedLeaderboard(){
+  const board = safe("improvedBoard");
+  if(!board) return;
+
+  board.innerHTML = "";
+
+  let ninjaList = [];
+  let activityList = [];
+
+  students.forEach(s => {
+    // 🥷 Ninja improvement (all grades)
+    if(s.ninjaAttempts.length >= 2){
+      const firstWpm = s.ninjaAttempts[0].wpm;
+      const lastWpm = s.ninjaAttempts.at(-1).wpm;
+      const improvement = lastWpm - firstWpm;
+      if(improvement !== 0){
+        ninjaList.push({ name: s.name, grade: s.grade, improvement });
+      }
+    }
+
+    // 📘 Activity improvement (only Grades 4, 5, 6)
+    if(["Grade 4","Grade 5","Grade 6"].includes(s.grade)){
+      const progStart = progress({ ...s, activity: 1, subLevel: activityLevels[1].start });
+      const progNow = progress(s);
+      const improvement = progNow - progStart;
+      if(improvement !== 0){
+        activityList.push({ name: s.name, grade: s.grade, improvement });
+      }
+    }
+  });
+
+  // Sort each list
+  ninjaList.sort((a,b) => b.improvement - a.improvement);
+  activityList.sort((a,b) => b.improvement - a.improvement);
+
+  // Limit to top 5 each
+  ninjaList = ninjaList.slice(0,5);
+  activityList = activityList.slice(0,5);
+
+  // Render Ninja improvements
+  board.innerHTML += "<h3>🥷 Top 5 Ninja Improvements</h3>";
+  ninjaList.forEach(i => {
+    board.innerHTML += `<li>${i.name} (${i.grade}) +${i.improvement} WPM</li>`;
+  });
+
+  // Render Activity improvements
+  board.innerHTML += "<h3>📘 Top 5 Activity Improvements (Grades 4–6)</h3>";
+  activityList.forEach(i => {
+    board.innerHTML += `<li>${i.name} (${i.grade}) +${i.improvement.toFixed(1)}% Progress</li>`;
+  });
 }
