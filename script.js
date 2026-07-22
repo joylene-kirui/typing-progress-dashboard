@@ -781,7 +781,6 @@ function login(){
     document.getElementById("loginStatus").innerText = "❌ Wrong username or password";
   }
 }
-
 function logout(){
   loggedIn = false;
 
